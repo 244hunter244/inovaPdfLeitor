@@ -8,8 +8,8 @@
         .upload-section { border: 2px dashed #007acc; padding: 25px; text-align: center; background: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         button { background: #007acc; color: white; border: none; padding: 12px 25px; cursor: pointer; border-radius: 4px; margin-top: 15px; font-weight: bold; }
         button:hover { background: #005999; }
-        .btn-db { background: #28a745; margin-left: 10px; }
-        .btn-db:hover { background: #218838; }
+        .btn-logout { background: #dc3545; float: right; margin-top: -10px; }
+        .btn-logout:hover { background: #bd2130; }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         th, td { border: 1px solid #e0e0e0; padding: 12px; text-align: center; font-size: 0.95em; }
         th { background: #007acc; color: white; font-weight: 600; }
@@ -22,13 +22,13 @@
 </head>
 <body>
 
+    <button class="btn-logout" onclick="logout()">Sair / Bloquear</button>
     <h1>Painel de Distribuição de Laboratórios</h1>
     <p>O algoritmo lê o PDF, garante até 2 aulas por professor e distribui a carga respeitando o limite físico de até 3 laboratórios simultâneos (6 horários por dia).</p>
     
     <div class="upload-section">
         <input type="file" id="pdfFile" accept=".pdf"><br>
         <button onclick="enviarPDF()">Otimizar e Distribuir Laboratórios</button>
-        <button id="btnSalvar" class="button btn-db" style="display:none;" onclick="salvarNoBanco()">Enviar Grade para o Banco</button>
     </div>
 
     <div id="loading" style="display:none; text-align: center; margin: 20px; font-weight: bold; color: #007acc;">Calculando otimização de salas...</div>
@@ -51,7 +51,17 @@
     </div>
 
     <script>
+        // TRAVA DE SEGURANÇA: Executa imediatamente ao abrir a página
+        if (localStorage.getItem('inova_autenticado') !== 'true') {
+            window.location.href = '/login.html';
+        }
+
         let dadosExtraidosGlobal = [];
+
+        function logout() {
+            localStorage.removeItem('inova_autenticado');
+            window.location.href = '/login.html';
+        }
 
         function obterClasseLab(labString) {
             if (labString.includes('01')) return 'lab1';
@@ -65,14 +75,12 @@
             if (!input.files || input.files.length === 0) return alert('Por favor, carregue o PDF.');
 
             const formData = new FormData();
-            formData.append('pdfFile', input.files[0]);
+            formData.append('pdfFile', input.files);
 
             document.getElementById('loading').style.display = 'block';
             document.getElementById('previewArea').style.display = 'none';
-            document.getElementById('btnSalvar').style.display = 'none';
 
             try {
-                // ALTERADO AQUI: Agora a rota é apenas '/upload', ideal para funcionar na Vercel
                 const resposta = await fetch('/upload', { method: 'POST', body: formData });
                 const json = await resposta.json();
                 document.getElementById('loading').style.display = 'none';
@@ -95,17 +103,11 @@
 
                 document.getElementById('corpoTabela').innerHTML = tabelaHtml;
                 document.getElementById('previewArea').style.display = 'block';
-                document.getElementById('btnSalvar').style.display = 'inline-block';
 
             } catch (erro) {
                 document.getElementById('loading').style.display = 'none';
                 alert('Erro interno de conexão.');
             }
-        }
-
-        function salvarNoBanco() {
-            alert(`Grade otimizada com sucesso! ${dadosExtraidosGlobal.length} registros prontos para envio.`);
-            console.log(dadosExtraidosGlobal);
         }
     </script>
 </body>
