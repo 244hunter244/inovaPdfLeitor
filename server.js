@@ -123,13 +123,13 @@ app.post('/upload', async (req, res) => {
         });
 
         
-        // SALVAMENTO AUTOMÁTICO NO BANCO DO SUPABASE
+               // SALVAMENTO AUTOMÁTICO NO BANCO DO SUPABASE
         if (registrosParaBanco.length > 0) {
-            // 1. DELETA TODOS OS REGISTROS ANTIGOS PRIMEIRO
+            // 1. FORÇA A LIMPEZA TOTAL DA TABELA DE FORMA COMPATÍVEL COM O POSTGRES
             const { error: deleteError } = await supabase
                 .from('horarios_laboratorio')
                 .delete()
-                .neq('id', 0); // Comando seguro para deletar todas as linhas da tabela
+                .gte('id', 0); // Seleciona todas as IDs maiores ou iguais a 0 (limpa tudo)
 
             if (deleteError) {
                 console.error("Erro ao limpar dados antigos:", deleteError);
@@ -146,6 +146,9 @@ app.post('/upload', async (req, res) => {
                 return res.status(500).json({ error: 'Erro ao salvar os novos dados no Supabase.' });
             }
         }
+
+        res.json({ dados: registrosParaBanco, mensagem: "Enviado e atualizado com sucesso!" });
+
 
         res.json({ dados: registrosParaBanco, mensagem: "Enviado e atualizado com sucesso!" });
 
