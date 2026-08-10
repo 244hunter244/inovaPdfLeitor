@@ -72,7 +72,8 @@
             document.getElementById('btnSalvar').style.display = 'none';
 
             try {
-                const resposta = await fetch('http://localhost:3000/upload', { method: 'POST', body: formData });
+                // ALTERADO AQUI: Agora a rota é apenas '/upload', ideal para funcionar na Vercel
+                const resposta = await fetch('/upload', { method: 'POST', body: formData });
                 const json = await resposta.json();
                 document.getElementById('loading').style.display = 'none';
 
@@ -83,7 +84,7 @@
                 let tabelaHtml = '';
                 dadosExtraidosGlobal.forEach(item => {
                     tabelaHtml += `<tr>
-                        <td><strong>${item.diaSemana}</strong></td>
+                        <td><strong>${item.dia_semana}</strong></td>
                         <td>${item.horario}</td>
                         <td><span class="lab-badge ${obterClasseLab(item.laboratorio)}">${item.laboratorio}</span></td>
                         <td>${item.professor}</td>

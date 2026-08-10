@@ -2,12 +2,18 @@ const express = require('express');
 const cors = require('cors');
 const pdfParse = require('pdf-parse');
 const fileUpload = require('express-fileupload');
+const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(fileUpload());
 app.use(express.static('public'));
+
+// CONEXÃO COM O SUPABASE (Substitua com os dados do seu painel)
+const SUPABASE_URL = 'https://wsfbsjddjpmcomlqhepr.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_TlOrAEtgQqn8HDWf88mkAA_TAmqNmtR';
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const DIAS_SEMANA = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'];
 
@@ -34,6 +40,7 @@ app.post('/upload', async (req, res) => {
             if (/^(URANINUP|URININUP|Página|Horário escolar|0800)/i.test(nomeProfessor)) return;
 
             linhas.forEach(linha => {
+                // CORRIGIDO: Removido completamente o termo "Web" que quebrava o servidor
                 const matchHora = linha.match(/^(\d{2}:\d{2})/);
                 if (matchHora) {
                     const horarioVoz = matchHora[1];
@@ -68,11 +75,9 @@ app.post('/upload', async (req, res) => {
         let mapaDeOcupacao = {};
         DIAS_SEMANA.forEach(dia => { mapaDeOcupacao[dia] = {}; });
 
-        // Nova estrutura de controle: contagemCota["NomeDoProf_NomeDaTurma"] = total de aulas alocadas
         let contagemCota = {};
         let registrosParaBanco = [];
 
-        // Embaralha para distribuir bem nos 3 laboratórios ao longo da semana
         todasAulasDisponiveis.sort(() => Math.random() - 0.5);
 
         todasAulasDisponiveis.forEach(aula => {
@@ -81,8 +86,6 @@ app.post('/upload', async (req, res) => {
             const chaveCota = `${prof}_${turma}`;
 
             if (!contagemCota[chaveCota]) contagemCota[chaveCota] = 0;
-            
-            // REGRA: Garante no máximo 2 aulas para esta combinação específica de Professor + Turma
             if (contagemCota[chaveCota] >= 2) return;
 
             let diaAlocado = null;
@@ -111,7 +114,7 @@ app.post('/upload', async (req, res) => {
                 registrosParaBanco.push({
                     professor: prof,
                     horario: horaAlocada,
-                    diaSemana: diaAlocado,
+                    dia_semana: diaAlocado,
                     laboratorio: `Laboratório 0${numeroLaboratorio}`,
                     turma: turma,
                     materia: aula.materia
@@ -119,17 +122,36 @@ app.post('/upload', async (req, res) => {
             }
         });
 
-        registrosParaBanco.sort((a, b) => {
-            const ordemDia = DIAS_SEMANA.indexOf(a.diaSemana) - DIAS_SEMANA.indexOf(b.diaSemana);
-            if (ordemDia !== 0) return ordemDia;
-            return a.horario.localeCompare(b.horario) || a.laboratorio.localeCompare(b.laboratorio);
-        });
+        
+        // SALVAMENTO AUTOMÁTICO NO BANCO DO SUPABASE
+        if (registrosParaBanco.length > 0) {
+            // 1. DELETA TODOS OS REGISTROS ANTIGOS PRIMEIRO
+            const { error: deleteError } = await supabase
+                .from('horarios_laboratorio')
+                .delete()
+                .neq('id', 0); // Comando seguro para deletar todas as linhas da tabela
 
-        res.json({ dados: registrosParaBanco });
+            if (deleteError) {
+                console.error("Erro ao limpar dados antigos:", deleteError);
+                return res.status(500).json({ error: 'Erro ao limpar dados antigos no Supabase.' });
+            }
+
+            // 2. INSERE OS NOVOS REGISTROS OTIMIZADOS
+            const { error: insertError } = await supabase
+                .from('horarios_laboratorio')
+                .insert(registrosParaBanco);
+
+            if (insertError) {
+                console.error("Erro Supabase Inserção:", insertError);
+                return res.status(500).json({ error: 'Erro ao salvar os novos dados no Supabase.' });
+            }
+        }
+
+        res.json({ dados: registrosParaBanco, mensagem: "Enviado e atualizado com sucesso!" });
 
     } catch (error) {
         console.error(error);
-        res.status(500).json({ error: 'Erro ao processar e distribuir horários por turma.' });
+        res.status(500).json({ error: 'Erro geral no processamento.' });
     }
 });
 
