@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leitor de Horários - Inova PDF</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; line-height: 1.6; }
+        .upload-section { border: 2px dashed #ccc; padding: 30px; text-align: center; background: #f9f9f9; border-radius: 8px; }
+        button { background: #007acc; color: white; border: none; padding: 10px 20px; cursor: pointer; border-radius: 4px; margin-top: 10px; }
+        button:hover { background: #005999; }
+        .turma-card { background: #fff; border: 1px solid #ddd; margin: 15px 0; padding: 15px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .turma-titulo { color: #007acc; font-weight: bold; font-size: 1.2em; border-bottom: 2px solid #007acc; padding-bottom: 5px; }
+        .materia-linha { background: #f1f1f1; margin: 5px 0; padding: 8px; border-left: 4px solid #4caf50; font-family: monospace; }
+    </style>
+</head>
+<body>
+
+    <h1>Leitor de PDF - Horários Escolares</h1>
+    <p>Envie o arquivo PDF gerado pelo Urânia para extrair os horários de Português, Matemática e Inglês.</p>
+
+    <div class="upload-section">
+        <input type="file" id="pdfFile" accept=".pdf"><br>
+        <button onclick="enviarPDF()">Processar e Filtrar Horários</button>
+    </div>
+
+    <div id="loading" style="display:none; text-align:center; margin: 20px;">Processando arquivo...</div>
+    <div id="resultados" style="margin-top: 30px;"></div>
+
+    <script>
+        async function enviarPDF() {
+            const input = document.getElementById('pdfFile');
+            const resultadosDiv = document.getElementById('resultados');
+            const loading = document.getElementById('loading');
+            
+            if (!input.files[0]) {
+                alert('Por favor, selecione um arquivo PDF primeiro.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('pdfFile', input.files[0]);
+
+            loading.style.display = 'block';
+            resultadosDiv.innerHTML = '';
+
+            try {
+                const resposta = await fetch('http://localhost:3000/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const dadosJson = await resposta.json();
+                loading.style.display = 'none';
+
+                if (dadosJson.error) {
+                    resultadosDiv.innerHTML = `<p style="color:red;">Erro: ${dadosJson.error}</p>`;
+                    return;
+                }
+
+                // Renderizar os horários das turmas na tela
+                const turmas = dadosJson.dados;
+                let htmlGerado = '';
+
+                for (let turma in turmas) {
+                    if (turmas[turma].length > 0) {
+                        htmlGerado += `<div class="turma-card">`;
+                        htmlGerado += `<div class="turma-titulo">Turma: ${turma}</div>`;
+                        
+                        turmas[turma].forEach(linha => {
+                            htmlGerado += `<div class="materia-linha">${linha}</div>`;
+                        });
+
+                        htmlGerado += `</div>`;
+                    }
+                }
+
+                resultadosDiv.innerHTML = htmlGerado || '<p>Nenhum horário encontrado para as matérias selecionadas.</p>';
+
+            } catch (erro) {
+                loading.style.display = 'none';
+                alert('Erro ao se conectar ao servidor backend.');
+                console.error(erro);
+            }
+        }
+    </script>
+</body>
+</html>
