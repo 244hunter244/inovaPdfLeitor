@@ -5,62 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Leitor de Horários - Inova PDF</title>
     <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            max-width: 800px; 
-            margin: 40px auto; 
-            padding: 20px; 
-            line-height: 1.6; 
-            background-color: #fcfcfc;
-        }
-        .upload-section { 
-            border: 2px dashed #007acc; 
-            padding: 30px; 
-            text-align: center; 
-            background: #f4f9ff; 
-            border-radius: 8px; 
-        }
-        button { 
-            background: #007acc; 
-            color: white; 
-            border: none; 
-            padding: 10px 20px; 
-            cursor: pointer; 
-            border-radius: 4px; 
-            margin-top: 15px;
-            font-weight: bold;
-        }
-        button:hover { 
-            background: #005999; 
-        }
-        .turma-card { 
-            background: #fff; 
-            border: 1px solid #ddd; 
-            margin: 20px 0; 
-            padding: 15px; 
-            border-radius: 6px; 
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
-        }
-        .turma-titulo { 
-            color: #007acc; 
-            font-weight: bold; 
-            font-size: 1.3em; 
-            border-bottom: 2px solid #007acc; 
-            padding-bottom: 5px; 
-            margin-bottom: 10px;
-        }
-        .materia-linha { 
-            background: #f7f7f7; 
-            margin: 5px 0; 
-            padding: 8px 12px; 
-            border-left: 4px solid #4caf50; 
-            font-family: monospace; 
-            font-size: 1.1em;
-        }
-        #loading {
-            font-weight: bold;
-            color: #007acc;
-        }
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; line-height: 1.6; background-color: #fcfcfc; }
+        .upload-section { border: 2px dashed #007acc; padding: 30px; text-align: center; background: #f4f9ff; border-radius: 8px; }
+        button { background: #007acc; color: white; border: none; padding: 10px 20px; cursor: pointer; border-radius: 4px; margin-top: 15px; font-weight: bold; }
+        button:hover { background: #005999; }
+        .turma-card { background: #fff; border: 1px solid #ddd; margin: 20px 0; padding: 15px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .turma-titulo { color: #007acc; font-weight: bold; font-size: 1.3em; border-bottom: 2px solid #007acc; padding-bottom: 5px; margin-bottom: 10px; }
+        .materia-linha { background: #f7f7f7; margin: 5px 0; padding: 8px 12px; border-left: 4px solid #4caf50; font-family: monospace; font-size: 1.1em; }
     </style>
 </head>
 <body>
@@ -73,7 +24,7 @@
         <button onclick="enviarPDF()">Processar e Filtrar Horários</button>
     </div>
 
-    <div id="loading" style="display:none; text-align:center; margin: 20px;">Processando arquivo, por favor aguarde...</div>
+    <div id="loading" style="display:none; text-align:center; margin: 20px; font-weight: bold; color: #007acc;">Processando arquivo, por favor aguarde...</div>
     <div id="resultados" style="margin-top: 30px;"></div>
 
     <script>
@@ -88,7 +39,7 @@
             }
 
             const formData = new FormData();
-            // CORRIGIDO: enviando apenas o primeiro arquivo selecionado [0]
+            // CORREÇÃO CRÍTICA: Adicionado o [0] para pegar o arquivo correto
             formData.append('pdfFile', input.files[0]);
 
             loading.style.display = 'block';
@@ -108,7 +59,6 @@
                     return;
                 }
 
-                // Renderizar os horários filtrados das turmas na tela
                 const turmas = dadosJson.dados;
                 let htmlGerado = '';
 
