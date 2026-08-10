@@ -2,86 +2,109 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Leitor de Horários - Inova PDF</title>
+    <title>Painel Geral de Laboratórios - Inova PDF</title>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; line-height: 1.6; background-color: #fcfcfc; }
-        .upload-section { border: 2px dashed #007acc; padding: 30px; text-align: center; background: #f4f9ff; border-radius: 8px; }
-        button { background: #007acc; color: white; border: none; padding: 10px 20px; cursor: pointer; border-radius: 4px; margin-top: 15px; font-weight: bold; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; max-width: 1100px; margin: 30px auto; padding: 20px; background: #f5f7fb; }
+        .upload-section { border: 2px dashed #007acc; padding: 25px; text-align: center; background: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        button { background: #007acc; color: white; border: none; padding: 12px 25px; cursor: pointer; border-radius: 4px; margin-top: 15px; font-weight: bold; }
         button:hover { background: #005999; }
-        .turma-card { background: #fff; border: 1px solid #ddd; margin: 20px 0; padding: 15px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .turma-titulo { color: #007acc; font-weight: bold; font-size: 1.3em; border-bottom: 2px solid #007acc; padding-bottom: 5px; margin-bottom: 10px; }
-        .materia-linha { background: #f7f7f7; margin: 5px 0; padding: 8px 12px; border-left: 4px solid #4caf50; font-family: monospace; font-size: 1.1em; }
+        .btn-db { background: #28a745; margin-left: 10px; }
+        .btn-db:hover { background: #218838; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        th, td { border: 1px solid #e0e0e0; padding: 12px; text-align: center; font-size: 0.95em; }
+        th { background: #007acc; color: white; font-weight: 600; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        .lab-badge { background: #e2e3e5; color: #383d41; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.85em; }
+        .lab1 { background: #d1e7dd; color: #0f5132; }
+        .lab2 { background: #cff4fc; color: #055160; }
+        .lab3 { background: #fff3cd; color: #664d03; }
     </style>
 </head>
 <body>
 
-    <h1>Leitor de PDF - Horários Escolares</h1>
-    <p>Envie o arquivo PDF gerado pelo Urânia para extrair os horários de Português, Matemática e Inglês.</p>
-
+    <h1>Painel de Distribuição de Laboratórios</h1>
+    <p>O algoritmo lê o PDF, garante até 2 aulas por professor e distribui a carga respeitando o limite físico de até 3 laboratórios simultâneos (6 horários por dia).</p>
+    
     <div class="upload-section">
         <input type="file" id="pdfFile" accept=".pdf"><br>
-        <button onclick="enviarPDF()">Processar e Filtrar Horários</button>
+        <button onclick="enviarPDF()">Otimizar e Distribuir Laboratórios</button>
+        <button id="btnSalvar" class="button btn-db" style="display:none;" onclick="salvarNoBanco()">Enviar Grade para o Banco</button>
     </div>
 
-    <div id="loading" style="display:none; text-align:center; margin: 20px; font-weight: bold; color: #007acc;">Processando arquivo, por favor aguarde...</div>
-    <div id="resultados" style="margin-top: 30px;"></div>
+    <div id="loading" style="display:none; text-align: center; margin: 20px; font-weight: bold; color: #007acc;">Calculando otimização de salas...</div>
+    
+    <div id="previewArea" style="display: none;">
+        <h3>Cronograma Semana Geral de Atividades</h3>
+        <table id="tabelaDados">
+            <thead>
+                <tr>
+                    <th>Dia da Semana</th>
+                    <th>Horário da Aula</th>
+                    <th>Sala Reservada</th>
+                    <th>Professor Responsável</th>
+                    <th>Turma Alocada</th>
+                    <th>Disciplina</th>
+                </tr>
+            </thead>
+            <tbody id="corpoTabela"></tbody>
+        </table>
+    </div>
 
     <script>
+        let dadosExtraidosGlobal = [];
+
+        function obterClasseLab(labString) {
+            if (labString.includes('01')) return 'lab1';
+            if (labString.includes('02')) return 'lab2';
+            if (labString.includes('03')) return 'lab3';
+            return '';
+        }
+
         async function enviarPDF() {
             const input = document.getElementById('pdfFile');
-            const resultadosDiv = document.getElementById('resultados');
-            const loading = document.getElementById('loading');
-            
-            if (!input.files || input.files.length === 0) {
-                alert('Por favor, selecione um arquivo PDF primeiro.');
-                return;
-            }
+            if (!input.files || input.files.length === 0) return alert('Por favor, carregue o PDF.');
 
             const formData = new FormData();
-            // CORREÇÃO CRÍTICA: Adicionado o [0] para pegar o arquivo correto
             formData.append('pdfFile', input.files[0]);
 
-            loading.style.display = 'block';
-            resultadosDiv.innerHTML = '';
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('previewArea').style.display = 'none';
+            document.getElementById('btnSalvar').style.display = 'none';
 
             try {
-                const resposta = await fetch('http://localhost:3000/upload', {
-                    method: 'POST',
-                    body: formData
+                const resposta = await fetch('http://localhost:3000/upload', { method: 'POST', body: formData });
+                const json = await resposta.json();
+                document.getElementById('loading').style.display = 'none';
+
+                if (json.error) return alert(json.error);
+
+                dadosExtraidosGlobal = json.dados;
+
+                let tabelaHtml = '';
+                dadosExtraidosGlobal.forEach(item => {
+                    tabelaHtml += `<tr>
+                        <td><strong>${item.diaSemana}</strong></td>
+                        <td>${item.horario}</td>
+                        <td><span class="lab-badge ${obterClasseLab(item.laboratorio)}">${item.laboratorio}</span></td>
+                        <td>${item.professor}</td>
+                        <td>${item.turma}</td>
+                        <td>${item.materia}</td>
+                    </tr>`;
                 });
 
-                const dadosJson = await resposta.json();
-                loading.style.display = 'none';
-
-                if (dadosJson.error) {
-                    resultadosDiv.innerHTML = `<p style="color:red; font-weight:bold;">Erro: ${dadosJson.error}</p>`;
-                    return;
-                }
-
-                const turmas = dadosJson.dados;
-                let htmlGerado = '';
-
-                for (let turma in turmas) {
-                    if (turmas[turma].length > 0) {
-                        htmlGerado += `<div class="turma-card">`;
-                        htmlGerado += `<div class="turma-titulo">Turma: ${turma}</div>`;
-                        
-                        turmas[turma].forEach(linha => {
-                            htmlGerado += `<div class="materia-linha">${linha}</div>`;
-                        });
-
-                        htmlGerado += `</div>`;
-                    }
-                }
-
-                resultadosDiv.innerHTML = htmlGerado || '<p>Nenhum horário encontrado para as matérias selecionadas neste arquivo PDF.</p>';
+                document.getElementById('corpoTabela').innerHTML = tabelaHtml;
+                document.getElementById('previewArea').style.display = 'block';
+                document.getElementById('btnSalvar').style.display = 'inline-block';
 
             } catch (erro) {
-                loading.style.display = 'none';
-                alert('Erro ao se conectar ao servidor backend.');
-                console.error(erro);
+                document.getElementById('loading').style.display = 'none';
+                alert('Erro interno de conexão.');
             }
+        }
+
+        function salvarNoBanco() {
+            alert(`Grade otimizada com sucesso! ${dadosExtraidosGlobal.length} registros prontos para envio.`);
+            console.log(dadosExtraidosGlobal);
         }
     </script>
 </body>
