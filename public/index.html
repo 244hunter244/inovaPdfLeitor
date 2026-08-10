@@ -2,35 +2,31 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Grade de Laboratórios - Inova PDF</title>
+    <title>Grade Interativa de Laboratórios - Inova PDF</title>
     <style>
-        body { font-family: 'Segoe UI', Arial, sans-serif; max-width: 1300px; margin: 30px auto; padding: 20px; background: #f5f7fb; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; max-width: 1450px; margin: 30px auto; padding: 20px; background: #f5f7fb; user-select: none; }
         .header-painel { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 25px; }
         .upload-section { border: 2px dashed #007acc; padding: 20px; text-align: center; background: #fcfdfe; border-radius: 6px; margin-top: 15px; }
         button { background: #007acc; color: white; border: none; padding: 10px 20px; cursor: pointer; border-radius: 4px; font-weight: bold; }
         button:hover { background: #005999; }
         .btn-logout { background: #dc3545; float: right; }
         .btn-logout:hover { background: #bd2130; }
-        
-        /* Estrutura Invertida do Grid (Dias nas Linhas, Horários nas Colunas) */
         .grid-container { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.06); overflow-x: auto; }
         .grid-titulo { color: #007acc; font-size: 1.4em; font-weight: bold; margin-bottom: 20px; border-left: 5px solid #007acc; padding-left: 10px; }
-        
-        table { width: 100%; border-collapse: collapse; background: white; min-width: 1000px; }
+        table { width: 100%; border-collapse: collapse; background: white; min-width: 1100px; }
         th, td { border: 1px solid #e2e8f0; padding: 10px; width: 14.2%; vertical-align: top; }
         th { background: #007acc; color: white; font-weight: 600; padding: 15px 10px; text-align: center; }
-        .dia-col { background: #f8fafc; font-weight: bold; text-align: center; vertical-align: middle; color: #334155; font-size: 1.1em; }
-        
-        /* Cards de Professores */
-        .item-reserva { background: #f1f5f9; border-left: 4px solid #64748b; margin: 6px 0; padding: 6px 10px; border-radius: 4px; text-align: left; font-size: 0.85em; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .dia-col { background: #f8fafc; font-weight: bold; text-align: center; vertical-align: middle; color: #334155; font-size: 1.1em; width: 100px; }
+        .drop-zone { min-height: 120px; transition: background 0.2s ease; }
+        .drop-zone.drag-over { background: #e0f2fe; border: 2px dashed #007acc; }
+        .item-reserva { background: #f1f5f9; border-left: 4px solid #64748b; margin: 6px 0; padding: 8px 10px; border-radius: 4px; text-align: left; font-size: 0.85em; box-shadow: 0 1px 3px rgba(0,0,0,0.05); cursor: grab; transition: transform 0.1s ease; }
+        .item-reserva:active { cursor: grabbing; transform: scale(0.98); }
         .item-reserva strong { color: #1e293b; display: block; margin-bottom: 2px; }
         .lab-tag { display: inline-block; font-size: 0.8em; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-top: 4px; }
         .lab01 { background: #d1e7dd; color: #0f5132; }
         .lab02 { background: #cff4fc; color: #055160; }
         .lab03 { background: #fff3cd; color: #664d03; }
-        
-        /* Status de Sobras */
-        .status-vaga { margin-top: 10px; padding: 8px; border-radius: 4px; text-align: center; font-size: 0.82em; font-weight: bold; }
+        .status-vaga { margin-top: 10px; padding: 6px; border-radius: 4px; text-align: center; font-size: 0.8em; font-weight: bold; pointer-events: none; }
         .sobra-livre { background: #e8f5e9; color: #2e7d32; border: 1px dashed #a5d6a7; }
         .sobra-lotado { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
     </style>
@@ -39,22 +35,19 @@
 
     <div class="header-painel">
         <button class="btn-logout" onclick="logout()">Sair / Bloquear</button>
-        <h1>Painel de Gestão Otimizada de Laboratórios</h1>
-        <p>O sistema processa a distribuição e organiza o cronograma semanal estruturado por dias e seus respectivos horários.</p>
-        
+        <h1>Painel Interativo de Laboratórios</h1>
+        <p>Arraste e solte os blocos dos professores para alterar ou trocar os horários livremente na semana.</p>
         <div class="upload-section">
             <input type="file" id="pdfFile" accept=".pdf">
             <button onclick="enviarPDF()">Otimizar e Gerar Grade</button>
         </div>
     </div>
 
-    <div id="loading" style="display:none; text-align: center; margin: 30px; font-weight: bold; color: #007acc;">Distribuindo professores e invertendo o grid...</div>
+    <div id="loading" style="display:none; text-align: center; margin: 30px; font-weight: bold; color: #007acc;">Carregando mapa interativo...</div>
     
     <div id="previewArea" style="display: none;" class="grid-container">
-        <div class="grid-titulo">Mapa Semanal de Ocupação e Sobras</div>
-        <table id="tabelaGrid">
-            <!-- Cabeçalho e corpo gerados dinamicamente para alinhar com os horários do PDF -->
-        </table>
+        <div class="grid-titulo">Mapa Semanal (Arraste os itens para trocar posições)</div>
+        <table id="tabelaGrid"></table>
     </div>
 
     <script>
@@ -63,6 +56,9 @@
         }
 
         const DIAS_SEMANA = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'];
+        let dadosExtraidosGlobal = [];
+        let listaHorariosSorted = [];
+        let draggedIndex = null;
 
         function logout() {
             localStorage.removeItem('inova_autenticado');
@@ -76,66 +72,111 @@
             return '';
         }
 
-        function montarGridInvertido(dadosReservas) {
-            let horariosUnicos = new Set();
-            
-            // Agrupa os dados na estrutura: mapa[dia][horario] = [reservas]
-            let mapaGrid = {};
-            DIAS_SEMANA.forEach(d => { mapaGrid[d] = {}; });
-
-            dadosReservas.forEach(reserva => {
-                horariosUnicos.add(reserva.horario);
-                if (!mapaGrid[reserva.dia_semana][reserva.horario]) {
-                    mapaGrid[reserva.dia_semana][reserva.horario] = [];
+        function recalcularLaboratoriosEAtualizarVisual() {
+            let contadores = {};
+            DIAS_SEMANA.forEach(d => {
+                contadores[d] = {};
+                listaHorariosSorted.forEach(h => { contadores[d][h] = 0; });
+            });
+            dadosExtraidosGlobal.forEach(res => {
+                if (contadores[res.dia_semana] && contadores[res.dia_semana][res.horario] !== undefined) {
+                    contadores[res.dia_semana][res.horario]++;
+                    res.laboratorio = `Laboratório 0${contadores[res.dia_semana][res.horario]}`;
                 }
-                mapaGrid[reserva.dia_semana][reserva.horario].push(reserva);
+            });
+            renderizarEstruturaGrid();
+        }
+
+        function renderizarEstruturaGrid() {
+            let mapaGrid = {};
+            DIAS_SEMANA.forEach(d => {
+                mapaGrid[d] = {};
+                listaHorariosSorted.forEach(h => { mapaGrid[d][h] = []; });
+            });
+            dadosExtraidosGlobal.forEach((res, index) => {
+                if (mapaGrid[res.dia_semana] && mapaGrid[res.dia_semana][res.horario]) {
+                    mapaGrid[res.dia_semana][res.horario].push({ ...res, originalIndex: index });
+                }
             });
 
-            // Ordena os horários cronologicamente (as 6 colunas)
-            let listaHorariosSorted = Array.from(horariosUnicos).sort();
-
-            // 1. Monta o Cabeçalho Dinâmico da Tabela
             let htmlCompleto = `<thead><tr><th>Dia / Horário</th>`;
-            listaHorariosSorted.forEach(hora => {
-                htmlCompleto += `<th>${hora}</th>`;
-            });
+            listaHorariosSorted.forEach(hora => { htmlCompleto += `<th>${hora}</th>`; });
             htmlCompleto += `</tr></thead><tbody>`;
 
-            // 2. Monta as Linhas por Dia da Semana
             DIAS_SEMANA.forEach(dia => {
                 htmlCompleto += `<tr><td class="dia-col">${dia}</td>`;
-                
                 listaHorariosSorted.forEach(hora => {
                     let reservasDoBloco = mapaGrid[dia][hora] || [];
                     let totalOcupado = reservasDoBloco.length;
                     let labsLivres = 3 - totalOcupado;
 
-                    htmlCompleto += `<td>`;
-                    
+                    htmlCompleto += `
+                        <td class="drop-zone" 
+                            data-dia="${dia}" 
+                            data-hora="${hora}" 
+                            ondragover="permitirDrop(event)" 
+                            ondragenter="destacarZona(event)" 
+                            ondragleave="removerDestaque(event)" 
+                            ondrop="efetuarDrop(event)">
+                    `;
                     reservasDoBloco.forEach(res => {
                         htmlCompleto += `
-                            <div class="item-reserva">
+                            <div class="item-reserva" draggable="true" data-index="${res.originalIndex}" ondragstart="iniciarDrag(event)">
                                 <strong>${res.professor}</strong>
                                 <span>Turma: ${res.turma} | ${res.materia}</span><br>
                                 <span class="lab-tag ${obterClasseLab(res.laboratorio)}">${res.laboratorio}</span>
                             </div>
                         `;
                     });
-
                     if (labsLivres > 0) {
                         htmlCompleto += `<div class="status-vaga sobra-livre">🔓 ${labsLivres} Livre(s)</div>`;
                     } else {
                         htmlCompleto += `<div class="status-vaga sobra-lotado">🔒 Lotado</div>`;
                     }
-
                     htmlCompleto += `</td>`;
                 });
-                
                 htmlCompleto += `</tr>`;
             });
-
             htmlCompleto += `</tbody>`;
             document.getElementById('tabelaGrid').innerHTML = htmlCompleto;
+        }
+
+        function iniciarDrag(e) {
+            draggedIndex = e.currentTarget.getAttribute('data-index');
+            e.dataTransfer.setData('text/plain', draggedIndex);
+        }
+        function permitirDrop(e) { e.preventDefault(); }
+        function destacarZona(e) { e.currentTarget.classList.add('drag-over'); }
+        function removerDestaque(e) { e.currentTarget.classList.remove('drag-over'); }
+
+        function efetuarDrop(e) {
+            e.preventDefault();
+            let zone = e.currentTarget.closest('.drop-zone');
+            if (!zone) return;
+            zone.classList.remove('drag-over');
+
+            let destinoDia = zone.getAttribute('data-dia');
+            let destinoHora = zone.getAttribute('data-hora');
+            let idxOrigem = parseInt(draggedIndex);
+            if (isNaN(idxOrigem)) return;
+
+            let itemOrigem = dadosExtraidosGlobal[idxOrigem];
+            let reservasNoDestino = dadosExtraidosGlobal.filter(r => r.dia_semana === destinoDia && r.horario === destinoHora);
+
+            if (reservasNoDestino.length >= 3) {
+                let itemDestino = reservasNoDestino[0];
+                let diaOrigemOriginal = itemOrigem.dia_semana;
+                let horaOrigemOriginal = itemOrigem.horario;
+
+                itemOrigem.dia_semana = destinoDia;
+                itemOrigem.horario = destinoHora;
+                itemDestino.dia_semana = diaOrigemOriginal;
+                itemDestino.horario = horaOrigemOriginal;
+            } else {
+                itemOrigem.dia_semana = destinoDia;
+                itemOrigem.horario = destinoHora;
+            }
+            recalcularLaboratoriosEAtualizarVisual();
         }
 
         async function enviarPDF() {
@@ -155,18 +196,17 @@
 
                 if (json.error) return alert(json.error);
 
-                montgGridInvertido(json.dados); // Chamando a nova montagem invertida
-                document.getElementById('previewArea').style.display = 'block';
+                dadosExtraidosGlobal = json.dados;
+                let horariosUnicos = new Set();
+                dadosExtraidosGlobal.forEach(r => horariosUnicos.add(r.horario));
+                listaHorariosSorted = Array.from(horariosUnicos).sort();
 
+                renderizarEstruturaGrid();
+                document.getElementById('previewArea').style.display = 'block';
             } catch (erro) {
                 document.getElementById('loading').style.display = 'none';
                 alert('Erro interno de conexão.');
             }
-        }
-
-        // Correção de digitação automática interna
-        function montgGridInvertido(dados) {
-            montarGridInvertido(dados);
         }
     </script>
 </body>
