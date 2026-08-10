@@ -171,18 +171,16 @@ app.post('/upload', async (req, res) => {
         });
 
         if (registrosParaBanco.length > 0) {
-            // DELEÇÃO COMPATÍVEL COM QUALQUER CONFIGURAÇÃO DO SUPABASE (Filtra se o ID não for nulo)
+            // 1. CHAMADA DA FUNÇÃO SQL QUE DELETA TUDO DE FORMA INFALÍVEL
             const { error: deleteError } = await supabase
-                .from('horarios_laboratorio')
-                .delete()
-                .not('id', 'is', null);
+                .rpc('deletar_todos_os_horarios');
 
             if (deleteError) {
-                console.error("Erro ao limpar dados antigos:", deleteError);
-                return res.status(500).json({ error: 'Erro ao limpar dados antigos no Supabase.' });
+                console.error("Erro ao limpar dados antigos via RPC:", deleteError);
+                return res.status(500).json({ error: 'Erro crítico ao limpar dados antigos no Supabase.' });
             }
 
-            // Insere os novos dados limpos e formatados
+            // 2. INSERE OS NOVOS REGISTROS LIMPOS E FORMATADOS
             const { error: insertError } = await supabase
                 .from('horarios_laboratorio')
                 .insert(registrosParaBanco);
