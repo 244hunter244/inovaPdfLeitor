@@ -40,7 +40,7 @@
     <div class="header-painel">
         <button class="btn-logout" onclick="logout()">Sair / Bloquear</button>
         <h1>Painel de Gestão Otimizada de Laboratórios</h1>
-        <p>O sistema processa a distribuição e organiza o cronograma de 6 horários semanais no formato de grade horária.</p>
+        <p>O sistema processa a distribution e organiza o cronograma de 6 horários semanais no formato de grade horária.</p>
         
         <div class="upload-section">
             <input type="file" id="pdfFile" accept=".pdf">
@@ -89,7 +89,6 @@
         }
 
         function montarGridHorarios(dadosReservas) {
-            // Mapeia e agrupa os dados do backend na estrutura: mapa[horario][dia] = [reservas]
             let mapaGrid = {};
             let horariosUnicos = new Set();
 
@@ -102,7 +101,6 @@
                 mapaGrid[reserva.horario][reserva.dia_semana].push(reserva);
             });
 
-            // Ordena os 6 horários do dia cronologicamente
             let listaHorariosSorted = Array.from(horariosUnicos).sort();
             let htmlGrid = '';
 
@@ -112,11 +110,10 @@
                 DIAS_SEMANA.forEach(dia => {
                     let reservasDoHorario = mapaGrid[hora][dia] || [];
                     let totalOcupado = reservasDoHorario.length;
-                    let labsLivres = 3 - totalOcupado; // Calcula a sobra física de laboratórios
+                    let labsLivres = 3 - totalOcupado;
 
                     htmlGrid += `<td>`;
                     
-                    // Renderiza o card de cada professor alocado neste bloco do grid
                     reservasDoHorario.forEach(res => {
                         htmlGrid += `
                             <div class="item-reserva">
@@ -127,7 +124,6 @@
                         `;
                     });
 
-                    // Insere o status de sobra (vaga remanescente) no rodapé da célula
                     if (labsLivres > 0) {
                         htmlGrid += `<div class="status-vaga sobra-livre">🔓 ${labsLivres} Lab(s) Livre(s)</div>`;
                     } else {
@@ -148,7 +144,8 @@
             if (!input.files || input.files.length === 0) return alert('Por favor, carregue o PDF.');
 
             const formData = new FormData();
-            formData.append('pdfFile', input.files);
+            // LINHA CORRIGIDA E TRAVADA COM [0] PARA EVITAR ERRO DE NENHUM ARQUIVO ENVIADO
+            formData.append('pdfFile', input.files[0]);
 
             document.getElementById('loading').style.display = 'block';
             document.getElementById('previewArea').style.display = 'none';
@@ -160,7 +157,6 @@
 
                 if (json.error) return alert(json.error);
 
-                // Monta o Grid Otimizado usando os dados estruturados do backend
                 montarGridHorarios(json.dados);
                 document.getElementById('previewArea').style.display = 'block';
 
