@@ -2,61 +2,79 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Painel Geral de Laboratórios - Inova PDF</title>
+    <title>Grade de Laboratórios - Inova PDF</title>
     <style>
-        body { font-family: 'Segoe UI', Arial, sans-serif; max-width: 1100px; margin: 30px auto; padding: 20px; background: #f5f7fb; }
-        .upload-section { border: 2px dashed #007acc; padding: 25px; text-align: center; background: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        button { background: #007acc; color: white; border: none; padding: 12px 25px; cursor: pointer; border-radius: 4px; margin-top: 15px; font-weight: bold; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; max-width: 1200px; margin: 30px auto; padding: 20px; background: #f5f7fb; }
+        .header-painel { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 25px; }
+        .upload-section { border: 2px dashed #007acc; padding: 20px; text-align: center; background: #fcfdfe; border-radius: 6px; margin-top: 15px; }
+        button { background: #007acc; color: white; border: none; padding: 10px 20px; cursor: pointer; border-radius: 4px; font-weight: bold; }
         button:hover { background: #005999; }
-        .btn-logout { background: #dc3545; float: right; margin-top: -10px; }
+        .btn-logout { background: #dc3545; float: right; }
         .btn-logout:hover { background: #bd2130; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        th, td { border: 1px solid #e0e0e0; padding: 12px; text-align: center; font-size: 0.95em; }
-        th { background: #007acc; color: white; font-weight: 600; }
-        tr:nth-child(even) { background-color: #f9f9f9; }
-        .lab-badge { background: #e2e3e5; color: #383d41; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.85em; }
-        .lab1 { background: #d1e7dd; color: #0f5132; }
-        .lab2 { background: #cff4fc; color: #055160; }
-        .lab3 { background: #fff3cd; color: #664d03; }
+        
+        /* Estrutura da Tabela em Grade (Grid Style) */
+        .grid-container { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.06); }
+        .grid-titulo { color: #007acc; font-size: 1.4em; font-weight: bold; margin-bottom: 20px; border-left: 5px solid #007acc; padding-left: 10px; }
+        
+        table { width: 100%; border-collapse: collapse; background: white; }
+        th, td { border: 1px solid #e2e8f0; padding: 10px; width: 16.6%; vertical-align: top; }
+        th { background: #007acc; color: white; font-weight: 600; padding: 15px 10px; }
+        .hora-col { background: #f8fafc; font-weight: bold; text-align: center; vertical-align: middle; color: #334155; font-size: 1.1em; }
+        
+        /* Estilização dos Cards dentro das células do Grid */
+        .item-reserva { background: #f1f5f9; border-left: 4px solid #64748b; margin: 6px 0; padding: 6px 10px; border-radius: 4px; text-align: left; font-size: 0.85em; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .item-reserva strong { color: #1e293b; display: block; margin-bottom: 2px; }
+        .lab-tag { display: inline-block; font-size: 0.8em; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-top: 4px; }
+        .lab01 { background: #d1e7dd; color: #0f5132; }
+        .lab02 { background: #cff4fc; color: #055160; }
+        .lab03 { background: #fff3cd; color: #664d03; }
+        
+        /* Sinalização de Sobras / Vagas Livres */
+        .status-vaga { margin-top: 10px; padding: 8px; border-radius: 4px; text-align: center; font-size: 0.85em; font-weight: bold; }
+        .sobra-livre { background: #e8f5e9; color: #2e7d32; border: 1px dashed #a5d6a7; }
+        .sobra-lotado { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
     </style>
 </head>
 <body>
 
-    <button class="btn-logout" onclick="logout()">Sair / Bloquear</button>
-    <h1>Painel de Distribuição de Laboratórios</h1>
-    <p>O algoritmo lê o PDF, garante até 2 aulas por professor e distribui a carga respeitando o limite físico de até 3 laboratórios simultâneos (6 horários por dia).</p>
-    
-    <div class="upload-section">
-        <input type="file" id="pdfFile" accept=".pdf"><br>
-        <button onclick="enviarPDF()">Otimizar e Distribuir Laboratórios</button>
+    <div class="header-painel">
+        <button class="btn-logout" onclick="logout()">Sair / Bloquear</button>
+        <h1>Painel de Gestão Otimizada de Laboratórios</h1>
+        <p>O sistema processa a distribuição e organiza o cronograma de 6 horários semanais no formato de grade horária.</p>
+        
+        <div class="upload-section">
+            <input type="file" id="pdfFile" accept=".pdf">
+            <button onclick="enviarPDF()">Otimizar e Gerar Grade</button>
+        </div>
     </div>
 
-    <div id="loading" style="display:none; text-align: center; margin: 20px; font-weight: bold; color: #007acc;">Calculando otimização de salas...</div>
+    <div id="loading" style="display:none; text-align: center; margin: 30px; font-weight: bold; color: #007acc;">Distribuindo professores e organizando o grid...</div>
     
-    <div id="previewArea" style="display: none;">
-        <h3>Cronograma Semana Geral de Atividades</h3>
-        <table id="tabelaDados">
+    <div id="previewArea" style="display: none;" class="grid-container">
+        <div class="grid-titulo">Mapa Semanal de Ocupação e Sobras</div>
+        <table>
             <thead>
                 <tr>
-                    <th>Dia da Semana</th>
-                    <th>Horário da Aula</th>
-                    <th>Sala Reservada</th>
-                    <th>Professor Responsável</th>
-                    <th>Turma Alocada</th>
-                    <th>Disciplina</th>
+                    <th>Horário</th>
+                    <th>Segunda</th>
+                    <th>Terça</th>
+                    <th>Quarta</th>
+                    <th>Quinta</th>
+                    <th>Sexta</th>
                 </tr>
             </thead>
-            <tbody id="corpoTabela"></tbody>
+            <tbody id="corpoGrid">
+                <!-- Inserido dinamicamente via Javascript -->
+            </tbody>
         </table>
     </div>
 
     <script>
-        // TRAVA DE SEGURANÇA: Executa imediatamente ao abrir a página
         if (localStorage.getItem('inova_autenticado') !== 'true') {
             window.location.href = '/login.html';
         }
 
-        let dadosExtraidosGlobal = [];
+        const DIAS_SEMANA = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'];
 
         function logout() {
             localStorage.removeItem('inova_autenticado');
@@ -64,10 +82,65 @@
         }
 
         function obterClasseLab(labString) {
-            if (labString.includes('01')) return 'lab1';
-            if (labString.includes('02')) return 'lab2';
-            if (labString.includes('03')) return 'lab3';
+            if (labString.includes('01')) return 'lab01';
+            if (labString.includes('02')) return 'lab02';
+            if (labString.includes('03')) return 'lab03';
             return '';
+        }
+
+        function montarGridHorarios(dadosReservas) {
+            // Mapeia e agrupa os dados do backend na estrutura: mapa[horario][dia] = [reservas]
+            let mapaGrid = {};
+            let horariosUnicos = new Set();
+
+            dadosReservas.forEach(reserva => {
+                horariosUnicos.add(reserva.horario);
+                if (!mapaGrid[reserva.horario]) {
+                    mapaGrid[reserva.horario] = {};
+                    DIAS_SEMANA.forEach(d => { mapaGrid[reserva.horario][d] = []; });
+                }
+                mapaGrid[reserva.horario][reserva.dia_semana].push(reserva);
+            });
+
+            // Ordena os 6 horários do dia cronologicamente
+            let listaHorariosSorted = Array.from(horariosUnicos).sort();
+            let htmlGrid = '';
+
+            listaHorariosSorted.forEach(hora => {
+                htmlGrid += `<tr><td class="hora-col">${hora}</td>`;
+                
+                DIAS_SEMANA.forEach(dia => {
+                    let reservasDoHorario = mapaGrid[hora][dia] || [];
+                    let totalOcupado = reservasDoHorario.length;
+                    let labsLivres = 3 - totalOcupado; // Calcula a sobra física de laboratórios
+
+                    htmlGrid += `<td>`;
+                    
+                    // Renderiza o card de cada professor alocado neste bloco do grid
+                    reservasDoHorario.forEach(res => {
+                        htmlGrid += `
+                            <div class="item-reserva">
+                                <strong>${res.professor}</strong>
+                                <span>Turma: ${res.turma} | ${res.materia}</span><br>
+                                <span class="lab-tag ${obterClasseLab(res.laboratorio)}">${res.laboratorio}</span>
+                            </div>
+                        `;
+                    });
+
+                    // Insere o status de sobra (vaga remanescente) no rodapé da célula
+                    if (labsLivres > 0) {
+                        htmlGrid += `<div class="status-vaga sobra-livre">🔓 ${labsLivres} Lab(s) Livre(s)</div>`;
+                    } else {
+                        htmlGrid += `<div class="status-vaga sobra-lotado">🔒 Lotado</div>`;
+                    }
+
+                    htmlGrid += `</td>`;
+                });
+
+                htmlGrid += `</tr>`;
+            });
+
+            document.getElementById('corpoGrid').innerHTML = htmlGrid;
         }
 
         async function enviarPDF() {
@@ -75,8 +148,7 @@
             if (!input.files || input.files.length === 0) return alert('Por favor, carregue o PDF.');
 
             const formData = new FormData();
-            // CORRIGIDO: Agora pegando o primeiro arquivo com [0] para enviar certinho para a Vercel
-            formData.append('pdfFile', input.files[0]);
+            formData.append('pdfFile', input.files);
 
             document.getElementById('loading').style.display = 'block';
             document.getElementById('previewArea').style.display = 'none';
@@ -88,21 +160,8 @@
 
                 if (json.error) return alert(json.error);
 
-                dadosExtraidosGlobal = json.dados;
-
-                let tabelaHtml = '';
-                dadosExtraidosGlobal.forEach(item => {
-                    tabelaHtml += `<tr>
-                        <td><strong>${item.dia_semana}</strong></td>
-                        <td>${item.horario}</td>
-                        <td><span class="lab-badge ${obterClasseLab(item.laboratorio)}">${item.laboratorio}</span></td>
-                        <td>${item.professor}</td>
-                        <td>${item.turma}</td>
-                        <td>${item.materia}</td>
-                    </tr>`;
-                });
-
-                document.getElementById('corpoTabela').innerHTML = tabelaHtml;
+                // Monta o Grid Otimizado usando os dados estruturados do backend
+                montarGridHorarios(json.dados);
                 document.getElementById('previewArea').style.display = 'block';
 
             } catch (erro) {
