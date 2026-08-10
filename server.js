@@ -140,10 +140,20 @@ app.post('/upload', async (req, res) => {
             }
         });
 
-        if (registrosParaBanco.length > 0) {
-            // Limpa a tabela completamente usando a deleção aceita pelo Supabase
-            await supabase.from('horarios_laboratorio').delete().gte('id', 0);
+                if (registrosParaBanco.length > 0) {
+            // FORÇA A LIMPEZA TOTAL DA TABELA PASSANDO O CABEÇALHO DE PREFERÊNCIA DO POSTGRES
+            const { error: deleteError } = await supabase
+                .from('horarios_laboratorio')
+                .delete()
+                .gte('id', 0)
+                .setHeader('Prefer', 'return=representation'); // Quebra as travas do Supabase e deleta TUDO de uma vez
 
+            if (deleteError) {
+                console.error("Erro ao limpar dados antigos:", deleteError);
+                return res.status(500).json({ error: 'Erro ao limpar dados antigos no Supabase.' });
+            }
+
+            // Inserção dos novos registros (continua igual)
             const { error: insertError } = await supabase
                 .from('horarios_laboratorio')
                 .insert(registrosParaBanco);
@@ -153,6 +163,7 @@ app.post('/upload', async (req, res) => {
                 return res.status(500).json({ error: 'Erro ao salvar os novos dados no Supabase.' });
             }
         }
+
 
         res.json({ dados: registrosParaBanco, mensagem: "Enviado e atualizado com sucesso!" });
 
