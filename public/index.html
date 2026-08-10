@@ -2,84 +2,181 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Leitor de Horários - Inova PDF</title>
+    <title>Grade de Horários - Inova PDF</title>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; line-height: 1.6; background-color: #fcfcfc; }
-        .upload-section { border: 2px dashed #007acc; padding: 30px; text-align: center; background: #f4f9ff; border-radius: 8px; }
-        button { background: #007acc; color: white; border: none; padding: 10px 20px; cursor: pointer; border-radius: 4px; margin-top: 15px; font-weight: bold; }
-        button:hover { background: #005999; }
-        .turma-card { background: #fff; border: 1px solid #ddd; margin: 20px 0; padding: 15px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .turma-titulo { color: #007acc; font-weight: bold; font-size: 1.3em; border-bottom: 2px solid #007acc; padding-bottom: 5px; margin-bottom: 10px; }
-        .materia-linha { background: #f7f7f7; margin: 5px 0; padding: 8px 12px; border-left: 4px solid #4caf50; font-family: monospace; font-size: 1.1em; }
+        body { 
+            font-family: 'Segoe UI', Arial, sans-serif; 
+            max-width: 950px; 
+            margin: 30px auto; 
+            padding: 20px; 
+            background: #f5f7fb; 
+        }
+        .upload-section { 
+            border: 2px dashed #007acc; 
+            padding: 25px; 
+            text-align: center; 
+            background: white; 
+            border-radius: 8px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05); 
+        }
+        button { 
+            background: #007acc; 
+            color: white; 
+            border: none; 
+            padding: 12px 25px; 
+            cursor: pointer; 
+            border-radius: 4px; 
+            margin-top: 15px; 
+            font-weight: bold; 
+        }
+        button:hover { 
+            background: #005999; 
+        }
+        .turma-container { 
+            background: white; 
+            margin: 30px 0; 
+            padding: 20px; 
+            border-radius: 8px; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.08); 
+        }
+        .turma-titulo { 
+            color: #007acc; 
+            font-size: 1.4em; 
+            font-weight: bold; 
+            margin-bottom: 15px; 
+            border-left: 5px solid #007acc; 
+            padding-left: 10px; 
+        }
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 10px; 
+        }
+        th, td { 
+            border: 1px solid #e0e0e0; 
+            padding: 12px; 
+            text-align: center; 
+            font-size: 0.95em; 
+            width: 16%;
+        }
+        th { 
+            background: #f0f4f8; 
+            color: #333; 
+            font-weight: 600; 
+        }
+        .destaque-port { 
+            background: #d1e7dd !important; 
+            color: #0f5132; 
+            font-weight: bold; 
+        }
+        .destaque-mat { 
+            background: #cff4fc !important; 
+            color: #055160; 
+            font-weight: bold; 
+        }
+        .destaque-ing { 
+            background: #fff3cd !important; 
+            color: #664d03; 
+            font-weight: bold; 
+        }
+        .vazio { 
+            background: #fafafa;
+            color: #ccc;
+        }
+        #loading {
+            font-weight: bold;
+            color: #007acc;
+            text-align: center;
+            margin: 20px;
+        }
     </style>
 </head>
 <body>
 
-    <h1>Leitor de PDF - Horários Escolares</h1>
-    <p>Envie o arquivo PDF gerado pelo Urânia para extrair os horários de Português, Matemática e Inglês.</p>
-
+    <h1>Leitor de Horários Escolares (Laboratórios)</h1>
+    <p>Insira o arquivo PDF para mapear exclusivamente as salas de laboratório para Português, Matemática e Inglês.</p>
+    
     <div class="upload-section">
         <input type="file" id="pdfFile" accept=".pdf"><br>
-        <button onclick="enviarPDF()">Processar e Filtrar Horários</button>
+        <button onclick="enviarPDF()">Filtrar Horários Laboratório</button>
     </div>
 
-    <div id="loading" style="display:none; text-align:center; margin: 20px; font-weight: bold; color: #007acc;">Processando arquivo, por favor aguarde...</div>
-    <div id="resultados" style="margin-top: 30px;"></div>
+    <div id="loading" style="display:none;">Processando PDF... Por favor, aguarde.</div>
+    <div id="resultados"></div>
 
     <script>
+        // Função responsável por validar e estilizar apenas as matérias selecionadas
+        function processarMateria(materia) {
+            if (!materia) return { texto: '-', classe: 'vazio' };
+            
+            const m = materia.toUpperCase();
+            
+            // Filtro rigoroso: Se for Português ou Recuperação de Português
+            if (m.includes('PORT') || m.includes('RECPOR')) {
+                return { texto: materia, classe: 'destaque-port' };
+            }
+            // Filtro rigoroso: Se for Matemática ou Recuperação de Matemática
+            if (m.includes('MAT') || m.includes('RECMAT') || m.includes('MAT-2')) {
+                return { texto: materia, classe: 'destaque-mat' };
+            }
+            // Filtro rigoroso: Se for Inglês ou Espanhol/Língua Estrangeira integrada
+            if (m.includes('INGL') || m.includes('RE/LE')) {
+                return { texto: materia, classe: 'destaque-ing' };
+            }
+            
+            // Oculta qualquer outra matéria que não faça parte das três especificadas
+            return { texto: '', classe: 'vazio' };
+        }
+
         async function enviarPDF() {
             const input = document.getElementById('pdfFile');
             const resultadosDiv = document.getElementById('resultados');
             const loading = document.getElementById('loading');
-            
+
             if (!input.files || input.files.length === 0) {
-                alert('Por favor, selecione um arquivo PDF primeiro.');
-                return;
+                return alert('Por favor, selecione um arquivo PDF.');
             }
 
             const formData = new FormData();
-            // CORREÇÃO CRÍTICA: Adicionado o [0] para pegar o arquivo correto
             formData.append('pdfFile', input.files[0]);
 
             loading.style.display = 'block';
             resultadosDiv.innerHTML = '';
 
             try {
-                const resposta = await fetch('http://localhost:3000/upload', {
-                    method: 'POST',
-                    body: formData
+                const resposta = await fetch('http://localhost:3000/upload', { 
+                    method: 'POST', 
+                    body: formData 
                 });
-
-                const dadosJson = await resposta.json();
+                
+                const json = await resposta.json();
                 loading.style.display = 'none';
 
-                if (dadosJson.error) {
-                    resultadosDiv.innerHTML = `<p style="color:red; font-weight:bold;">Erro: ${dadosJson.error}</p>`;
+                if (json.error) {
+                    resultadosDiv.innerHTML = `<p style="color:red;">${json.error}</p>`;
                     return;
                 }
-
-                const turmas = dadosJson.dados;
-                let htmlGerado = '';
-
-                for (let turma in turmas) {
-                    if (turmas[turma].length > 0) {
-                        htmlGerado += `<div class="turma-card">`;
-                        htmlGerado += `<div class="turma-titulo">Turma: ${turma}</div>`;
-                        
-                        turmas[turma].forEach(linha => {
-                            htmlGerado += `<div class="materia-linha">${linha}</div>`;
-                        });
-
-                        htmlGerado += `</div>`;
-                    }
+                
+                let html = '';
+                for (let turma in json.dados) {
+                    html += `<div class="turma-container"><div class="turma-titulo">Turma: ${turma}</div>`;
+                    html += `<table><tr><th>Horário</th><th>Segunda</th><th>Terça</th><th>Quarta</th><th>Quinta</th><th>Sexta</th></tr>`;
+                    
+                    json.dados[turma].forEach(row => {
+                        html += `<tr><td><strong>${row.horario}</strong></td>`;
+                        for(let i = 0; i < 5; i++) {
+                            const matBruta = row.dias[i] || '';
+                            const filtro = processarMateria(matBruta);
+                            html += `<td class="${filtro.classe}">${filtro.texto}</td>`;
+                        }
+                        html += `</tr>`;
+                    });
+                    html += `</table></div>`;
                 }
-
-                resultadosDiv.innerHTML = htmlGerado || '<p>Nenhum horário encontrado para as matérias selecionadas neste arquivo PDF.</p>';
-
+                resultadosDiv.innerHTML = html || '<p>Nenhum horário correspondente foi encontrado.</p>';
             } catch (erro) {
                 loading.style.display = 'none';
-                alert('Erro ao se conectar ao servidor backend.');
+                alert('Falha na comunicação com o servidor backend.');
                 console.error(erro);
             }
         }
