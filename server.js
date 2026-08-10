@@ -10,7 +10,7 @@ app.use(express.json());
 app.use(fileUpload());
 app.use(express.static('public'));
 
-// CONEXÃO COM O SUPABASE (Substitua com os dados do seu painel)
+// CONEXÃO COM O SUPABASE
 const SUPABASE_URL = 'https://wsfbsjddjpmcomlqhepr.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_TlOrAEtgQqn8HDWf88mkAA_TAmqNmtR';
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -40,32 +40,50 @@ app.post('/upload', async (req, res) => {
             if (/^(URANINUP|URININUP|Página|Horário escolar|0800)/i.test(nomeProfessor)) return;
 
             linhas.forEach(linha => {
-                // CORRIGIDO: Removido completamente o termo "Web" que quebrava o servidor
                 const matchHora = linha.match(/^(\d{2}:\d{2})/);
                 if (matchHora) {
                     const horarioVoz = matchHora[1];
                     let conteudoMaterias = linha.substring(matchHora[0].length).trim();
-                    let colunasDia = conteudoMaterias.split(/(?=\b\d+°[A-Z]|\b\d+º[A-Z])/g).map(c => c.trim());
+                    
+                    // Divide as colunas de segunda a sexta com base no espaçamento do Urânia
+                    let colunasDia = conteudoMaterias.split(/\s{2,}/);
 
                     for (let i = 0; i < 5; i++) {
                         let celula = colunasDia[i] || '';
-                        if (!celula || /^(HA|H\.A\.|H\.A|------)$/i.test(celula)) continue;
+                        let celulaLimpa = celula.replace(/[\s\-\.]+(HA|H\.A\.|H\.A)$/i, '').trim();
+                        
+                        if (!celulaLimpa || /^(HA|H\.A\.|H\.A|------)$/i.test(celulaLimpa) || celulaLimpa.startsWith('---')) {
+                            continue;
+                        }
 
-                        if (celula.includes('/')) {
-                            let partes = celula.split('/');
-                            let turma = partes[0].trim();
-                            let materia = partes[1].trim();
+                        let turma = 'Desconhecida';
+                        let materia = celulaLimpa;
 
-                            const m = materia.toUpperCase();
-                            if (m.includes('PORT') || m.includes('RECPOR') || m.includes('MAT') || m.includes('RECMAT') || m.includes('INGL') || m.includes('RE/LE')) {
-                                todasAulasDisponiveis.push({
-                                    professor: nomeProfessor,
-                                    horario: horarioVoz,
-                                    diaOriginal: DIAS_SEMANA[i] || 'Segunda',
-                                    turma: turma,
-                                    materia: materia
-                                });
-                            }
+                        // REGEX COMPATÍVEL VERCEL: Usa códigos Unicode puros para evitar erros de compilação
+                        const regexTurma = /(\d+[\u00b0\u00ba\u00aaA-Za-z]+[A-Z](?:\s+[A-Z\s]+)?)/i;
+                        const matchTurma = celulaLimpa.match(regexTurma);
+
+                        if (matchTurma) {
+                            turma = matchTurma[0].trim();
+                            materia = celulaLimpa.replace(regexTurma, '').replace(/[\/\s\-]+$/, '').trim();
+                        } else if (celulaLimpa.includes('/')) {
+                            let partes = celulaLimpa.split('/');
+                            turma = partes[0].trim();
+                            materia = partes[1].trim();
+                        }
+
+                        if (!materia) materia = celulaLimpa;
+
+                        // Valida se o texto isolado corresponde a alguma das nossas disciplinas de laboratório
+                        const m = materia.toUpperCase();
+                        if (m.includes('PORT') || m.includes('RECPOR') || m.includes('MAT') || m.includes('RECMAT') || m.includes('INGL') || m.includes('RE/LE')) {
+                            todasAulasDisponiveis.push({
+                                professor: nomeProfessor,
+                                horario: horarioVoz,
+                                diaOriginal: DIAS_SEMANA[i] || 'Segunda',
+                                turma: turma,
+                                materia: materia
+                            });
                         }
                     }
                 }
@@ -122,21 +140,10 @@ app.post('/upload', async (req, res) => {
             }
         });
 
-        
-               // SALVAMENTO AUTOMÁTICO NO BANCO DO SUPABASE
         if (registrosParaBanco.length > 0) {
-            // 1. FORÇA A LIMPEZA TOTAL DA TABELA DE FORMA COMPATÍVEL COM O POSTGRES
-            const { error: deleteError } = await supabase
-                .from('horarios_laboratorio')
-                .delete()
-                .gte('id', 0); // Seleciona todas as IDs maiores ou iguais a 0 (limpa tudo)
+            // Limpa a tabela completamente usando a deleção aceita pelo Supabase
+            await supabase.from('horarios_laboratorio').delete().gte('id', 0);
 
-            if (deleteError) {
-                console.error("Erro ao limpar dados antigos:", deleteError);
-                return res.status(500).json({ error: 'Erro ao limpar dados antigos no Supabase.' });
-            }
-
-            // 2. INSERE OS NOVOS REGISTROS OTIMIZADOS
             const { error: insertError } = await supabase
                 .from('horarios_laboratorio')
                 .insert(registrosParaBanco);
@@ -149,12 +156,9 @@ app.post('/upload', async (req, res) => {
 
         res.json({ dados: registrosParaBanco, mensagem: "Enviado e atualizado com sucesso!" });
 
-
-        res.json({ dados: registrosParaBanco, mensagem: "Enviado e atualizado com sucesso!" });
-
     } catch (error) {
         console.error(error);
-        res.status(500).json({ error: 'Erro geral no processamento.' });
+        res.status(500).json({ error: 'Erro geral no processamento do arquivo.' });
     }
 });
 
